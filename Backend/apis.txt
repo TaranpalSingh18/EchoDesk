@@ -1,0 +1,50 @@
+Below is the fully revised API specification for your enhanced meeting assistant, with automation at meeting end:
+
+| HTTP Method | Path                                  | Purpose / Description                                                                          |               |
+| ----------- | ------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------- |
+| **POST**    | `/auth/register`                      | Register a new user. Body: `{ username, email, password }`.                                    |               |
+| **POST**    | `/auth/login`                         | Authenticate user, return JWT. Body: `{ email, password }`.                                    |               |
+| **GET**     | `/auth/me`                            | Get current user profile.                                                                      |               |
+| **POST**    | `/users/{user_id}/email-verification` | Send verification email. Body: `{}`.                                                           |               |
+| **POST**    | `/meetings/`                          | Create a meeting record. Body: `{ code: string, start_time: ISODate }`.                        |               |
+| **GET**     | `/meetings/`                          | List meetings (filter \`?status=active                                                         | completed\`). |
+| **GET**     | `/meetings/{meeting_id}`              | Get meeting metadata & status.                                                                 |               |
+| **POST**    | `/meetings/{meeting_id}/join`         | Auto-join bot as observer (mic/cam off). Body: `{}`.                                           |               |
+| **POST**    | `/meetings/{meeting_id}/complete`     | **Trigger end-of-meeting automation.**                                                         |               |
+|             |                                       | • Run final ASR on any remaining audio.                                                        |               |
+|             |                                       | • Perform speaker diarization.                                                                 |               |
+|             |                                       | • Generate full-meeting summary via LLM (bullets + decisions).                                 |               |
+|             |                                       | • Extract all action items/tasks (title, assignee\_user\_id, due\_date).                       |               |
+|             |                                       | • Automatically create external tickets (Asana, Jira) and record URLs.                         |               |
+|             |                                       | • Send per-assignee email with their list of tasks.                                            |               |
+|             |                                       | **Returns:** aggregated report object with `{ summary[], tasks[], tickets[] }`.                |               |
+| **POST**    | `/audio/stream`                       | WebSocket for streaming raw PCM audio chunks (ASR + diarization).                              |               |
+| **POST**    | `/transcripts/`                       | Store interim transcript segments. Body: `{ meeting_id, segments: [ { start, end, text } ] }`. |               |
+| **GET**     | `/transcripts/{meeting_id}`           | Fetch full transcript.                                                                         |               |
+| **POST**    | `/diarization/`                       | Trigger speaker diarization. Body: `{ meeting_id, audio_url }`.                                |               |
+| **GET**     | `/diarization/{meeting_id}`           | Retrieve speaker-tagged segments.                                                              |               |
+| **POST**    | `/summaries/`                         | Request summary bullets for a text window. Body: `{ meeting_id, window_text }`.                |               |
+| **GET**     | `/summaries/{meeting_id}`             | Retrieve all summary bullets.                                                                  |               |
+| **POST**    | `/tasks/`                             | Create a new task. Body: `{ meeting_id, title, description, assignee_user_id, due_date }`.     |               |
+| **GET**     | `/tasks/`                             | List tasks (filter `?meeting_id=&status=&assignee=`).                                          |               |
+| **GET**     | `/tasks/{task_id}`                    | Get task details (incl. external ticket URLs).                                                 |               |
+| **PATCH**   | `/tasks/{task_id}`                    | Update a task. Body may include any field.                                                     |               |
+| **DELETE**  | `/tasks/{task_id}`                    | Remove a task.                                                                                 |               |
+| **POST**    | `/integrations/email`                 | Send assignment email. Body: `{ task_id, template_id? }`.                                      |               |
+| **POST**    | `/integrations/asana`                 | Create Asana task & link. Body: `{ task_id, workspace_id, project_id, assignee_email }`.       |               |
+| **POST**    | `/integrations/jira`                  | Create Jira issue & link. Body: `{ task_id, project_key, issue_type, assignee_email }`.        |               |
+| **POST**    | `/notifications/slack`                | Post Slack notification. Body: `{ channel, message }`.                                         |               |
+| **GET**     | `/search?q=keyword`                   | Full-text search across transcripts, summaries, and tasks.                                     |               |
+| **POST**    | `/export/markdown`                    | Generate Markdown report. Body: `{ meeting_id }`.                                              |               |
+| **POST**    | `/export/pdf`                         | Convert Markdown to PDF. Body: `{ meeting_id }`.                                               |               |
+| **POST**    | `/export/google-doc`                  | Upload report to Google Docs. Body: `{ meeting_id, folder_id }`.                               |               |
+
+**Automation Notes:**
+
+* The `/meetings/{meeting_id}/complete` endpoint orchestrates the entire end-of-meeting workflow in one call.
+* Use background tasks (FastAPI’s `BackgroundTasks` or Celery) to handle long-running jobs (ASR, diarization, LLM calls, integrations).
+* Ensure idempotency: calling `/complete` multiple times shouldn’t duplicate tickets or emails.
+* All non-`/auth` endpoints require `Authorization: Bearer <JWT>`.
+* Define Pydantic models for every request/response to auto-generate OpenAPI docs.
+
+This spec ensures that as soon as a meeting ends, your AI pipeline runs, reports are generated, tasks are extracted and routed, tickets are created, and assignees are notified—all automatically.
