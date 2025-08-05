@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from auth_routes import auth_router
+from session_routes import session_router
 from fastapi_jwt_auth import AuthJWT
 from schema import Settings
 import uvicorn
@@ -27,6 +28,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(session_router)
 @AuthJWT.load_config
 def get_config():
     return Settings()

@@ -1,5 +1,7 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, AnyUrl
 from typing import List, Dict, Annotated, Optional
+from datetime import datetime, date, time, timedelta
+from uuid import UUID
 
 class SignupModel(BaseModel):
     id: Optional[int]
@@ -15,7 +17,12 @@ class Settings(BaseModel):
     class Config:
         env_file = ".env"
 
-
 class LoginModel(BaseModel):
     email: EmailStr
     password: str
+
+class SessionModel(BaseModel):
+    session_id:str
+    meeting_url:AnyUrl
+    start_time:datetime
+    status:str
